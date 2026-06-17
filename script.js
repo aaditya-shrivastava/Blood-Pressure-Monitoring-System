@@ -75,11 +75,11 @@ function toast(message, duration = 2500) {
   }, duration);
 }
 
-function last30Days(readings) {
-  const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+// function last30Days(readings) {
+//   const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
 
-  return readings.filter((r) => new Date(r.time).getTime() >= cutoff);
-}
+//   return readings.filter((r) => new Date(r.time).getTime() >= cutoff);
+// }
 
 /* ==========================
    Main Render
@@ -88,7 +88,7 @@ function last30Days(readings) {
 function render() {
   const all = loadReadings();
 
-  const readings = last30Days(all).sort(
+  const readings = all.sort(
     (a, b) => new Date(a.time) - new Date(b.time),
   );
 
@@ -707,7 +707,7 @@ window.addEventListener("resize", () => {
   clearTimeout(resizeTimer);
 
   resizeTimer = setTimeout(() => {
-    const readings = last30Days(loadReadings()).sort(
+    const readings = loadReadings().sort(
       (a, b) => new Date(a.time) - new Date(b.time),
     );
 
