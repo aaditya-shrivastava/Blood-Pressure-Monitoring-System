@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <title>Blood Pressure Monitor</title>
+
+    <!-- Chart.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+
+    <!-- External CSS -->
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+
+    <!-- Login Screen -->
+    <div id="loginScreen" class="login-screen">
+      <div class="login-card">
+        <div class="pulse-icon" style="margin: 0 auto 1rem;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#e24b4a" stroke-width="2.2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+          </svg>
+        </div>
+        <h2>Blood Pressure Monitor</h2>
+        <p>Sign in to sync your readings across all devices</p>
+        <button class="btn-google" id="btnLogin">
+          <svg width="18" height="18" viewBox="0 0 48 48">
+            <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+            <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+            <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+            <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+          </svg>
+          Sign in with Google
+        </button>
+      </div>
+    </div>
+
+    <!-- Main App (hidden until logged in) -->
+    <div id="appScreen" style="display:none;">
+
+      <!-- Header -->
+      <header>
+        <div class="pulse-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#e24b4a" stroke-width="2.2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+          </svg>
+        </div>
+
+        <div style="flex:1;">
+          <h1>Blood Pressure Monitor</h1>
+          <p>Your personal tracking dashboard</p>
+        </div>
+
+        <!-- User Info + Logout -->
+        <div class="user-info">
+          <img id="userAvatar" src="" alt="avatar" class="user-avatar" />
+          <span id="userName" class="user-name"></span>
+          <button class="btn-logout" id="btnLogout">Sign out</button>
+        </div>
+      </header>
+
+      <div class="container">
+        <!-- Statistics -->
+        <div class="stats-grid">
+          <div class="stat-box">
+            <div class="lbl">Avg Systolic</div>
+            <div class="val sys" id="avgSys">—</div>
+            <div class="sub">mmHg · all time</div>
+          </div>
+
+          <div class="stat-box">
+            <div class="lbl">Avg Diastolic</div>
+            <div class="val dia" id="avgDia">—</div>
+            <div class="sub">mmHg · all time</div>
+          </div>
+
+          <div class="stat-box">
+            <div class="lbl">Latest Reading</div>
+            <div class="val neu" id="latestReading">—</div>
+            <div class="sub" id="latestDate">No readings yet</div>
+          </div>
+
+          <div class="stat-box">
+            <div class="lbl">Total Readings</div>
+            <div class="val neu" id="totalReadings">0</div>
+            <div class="sub">total readings</div>
+          </div>
+        </div>
+
+        <!-- Chart -->
+        <div class="card">
+          <div class="card-title">Trend</div>
+
+          <div class="legend">
+            <div class="legend-item">
+              <span class="legend-dot systolic-dot"></span>
+              Systolic
+            </div>
+            <div class="legend-item">
+              <span class="legend-dot diastolic-dot"></span>
+              Diastolic
+            </div>
+          </div>
+
+          <div class="chart-wrap">
+            <canvas id="bpChart" role="img" aria-label="Blood pressure graph"></canvas>
+          </div>
+        </div>
+
+        <!-- Add Reading -->
+        <div class="card">
+          <div class="card-title">Add Reading</div>
+
+          <div class="form-stack">
+            <div class="form-row-2">
+              <div class="field">
+                <label>Systolic (mmHg)</label>
+                <input type="number" id="systolic" placeholder="120" min="60" max="250" inputmode="numeric" />
+              </div>
+              <div class="field">
+                <label>Diastolic (mmHg)</label>
+                <input type="number" id="diastolic" placeholder="80" min="40" max="150" inputmode="numeric" />
+              </div>
+            </div>
+
+            <div class="form-row-2">
+              <div class="field">
+                <label>Pulse (bpm) — optional</label>
+                <input type="number" id="pulse" placeholder="72" min="30" max="220" inputmode="numeric" />
+              </div>
+              <div class="field">
+                <label>Date & Time</label>
+                <input type="datetime-local" id="readingTime" />
+              </div>
+            </div>
+
+            <div class="field full-width">
+              <label>Notes — optional</label>
+              <input type="text" id="notes" placeholder="After exercise, before medication..." />
+            </div>
+
+            <button class="btn-add" onclick="addReading()">Save Reading</button>
+
+            <p class="hint">
+              Enter <span class="sys">Systolic</span> /
+              <span class="dia">Diastolic</span>. Pulse is optional and is saved to CSV but not shown on the graph.
+            </p>
+          </div>
+        </div>
+
+        <!-- Reading History -->
+        <div class="card">
+          <div class="table-header">
+            <div class="card-title history-title">Reading History</div>
+
+            <div class="csv-actions">
+              <button class="btn-csv" onclick="document.getElementById('csvImport').click()">
+                Import CSV
+              </button>
+              <button class="btn-csv" onclick="downloadCSV()">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                Download CSV
+              </button>
+            </div>
+
+            <input type="file" id="csvImport" accept=".csv" style="display:none" onchange="importCSV(event)" />
+          </div>
+
+          <div id="tableContainer"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <!-- JavaScript -->
+    <script type="module" src="script.js"></script>
+  </body>
+</html>

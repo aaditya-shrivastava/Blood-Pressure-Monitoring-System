@@ -1,0 +1,489 @@
+:root {
+  --bg: #f5f7fa;
+  --card: #ffffff;
+  --border: #e2e8f0;
+  --text: #1a202c;
+  --muted: #64748b;
+
+  --systolic: #e24b4a;
+  --diastolic: #185fa5;
+
+  --accent: #0f6e56;
+  --accent-dark: #085041;
+
+  --radius: 12px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+}
+
+/* ==========================
+   Login Screen
+========================== */
+
+.login-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  padding: 1rem;
+}
+
+.login-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2.5rem 2rem;
+  text-align: center;
+  max-width: 380px;
+  width: 100%;
+}
+
+.login-card h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 0.4rem;
+}
+
+.login-card p {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-bottom: 1.75rem;
+  line-height: 1.5;
+}
+
+.btn-google {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: white;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn-google:hover {
+  background: var(--bg);
+}
+
+/* ==========================
+   Header
+========================== */
+
+header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  padding: 0.9rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.pulse-icon {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fcebeb;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.pulse-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+header h1 {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+header p {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+/* User Info */
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.user-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: none;
+}
+
+.user-name {
+  font-size: 0.8rem;
+  color: var(--muted);
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.btn-logout {
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: white;
+  font-size: 0.75rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-logout:hover {
+  background: var(--bg);
+}
+
+/* ==========================
+   Layout
+========================== */
+
+.container {
+  max-width: 900px;
+  margin: auto;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+}
+
+.card-title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.8rem;
+}
+
+/* ==========================
+   Statistics
+========================== */
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.7rem;
+}
+
+.stat-box {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.85rem;
+}
+
+.lbl {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.val {
+  font-size: 1.45rem;
+  font-weight: 700;
+}
+
+.sys { color: var(--systolic); }
+.dia { color: var(--diastolic); }
+.neu { color: var(--text); }
+
+.sub {
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+/* ==========================
+   Chart
+========================== */
+
+.legend {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.systolic-dot { background: var(--systolic); }
+.diastolic-dot { background: var(--diastolic); }
+
+.chart-wrap {
+  width: 100%;
+  height: 260px;
+}
+
+/* ==========================
+   Form
+========================== */
+
+.form-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.form-row-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.full-width { width: 100%; }
+
+label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+input {
+  width: 100%;
+  min-width: 0;
+  padding: 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.95rem;
+  outline: none;
+  background: var(--card);
+}
+
+input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(15,110,86,0.1);
+}
+
+#systolic { border-color: rgba(226,75,74,0.3); }
+#diastolic { border-color: rgba(24,95,165,0.3); }
+
+input[type="datetime-local"] { font-size: 0.85rem; }
+
+.btn-add {
+  width: 100%;
+  padding: 0.8rem;
+  border: none;
+  border-radius: 8px;
+  background: var(--accent);
+  color: white;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-add:active { background: var(--accent-dark); }
+
+.hint {
+  font-size: 0.75rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+/* ==========================
+   History
+========================== */
+
+.table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.btn-csv {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0.45rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: white;
+  cursor: pointer;
+  font-size: 0.75rem;
+}
+
+.btn-csv:hover { background: var(--bg); }
+
+.tbl-desktop {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.tbl-desktop th,
+.tbl-desktop td {
+  padding: 0.7rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+
+.tbl-desktop th {
+  font-size: 0.65rem;
+  color: var(--muted);
+}
+
+.sv { color: var(--systolic); font-weight: 700; }
+.dv { color: var(--diastolic); font-weight: 700; }
+
+/* Mobile Cards */
+
+.tbl-mobile { display: none; }
+
+.row-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.8rem;
+  margin-bottom: 0.75rem;
+}
+
+.row-date { font-size: 0.75rem; color: var(--muted); }
+.row-bp { margin-top: 0.25rem; font-size: 1.1rem; }
+.row-sys { color: var(--systolic); font-weight: 700; }
+.row-dia { color: var(--diastolic); font-weight: 700; }
+.row-pulse { color: var(--muted); font-size: 0.75rem; }
+.row-notes { margin-top: 0.5rem; color: var(--muted); font-size: 0.75rem; }
+
+/* Delete Button */
+
+.btn-del {
+  border: none;
+  background: none;
+  color: #999;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.btn-del:hover { color: #e24b4a; }
+
+/* Empty State */
+
+.empty-state {
+  text-align: center;
+  padding: 2rem;
+  color: var(--muted);
+}
+
+/* Toast */
+
+.toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1a202c;
+  color: white;
+  padding: 0.75rem 1rem;
+  border-radius: 20px;
+  opacity: 0;
+  transition: 0.2s;
+  pointer-events: none;
+  z-index: 999;
+}
+
+.toast.show { opacity: 1; }
+
+/* ==========================
+   Responsive
+========================== */
+
+@media (max-width: 600px) {
+  .container { padding: 0.75rem; }
+  .chart-wrap { height: 220px; }
+  .tbl-desktop { display: none; }
+  .tbl-mobile { display: block; }
+  .form-row-2 { grid-template-columns: 1fr; }
+  .user-name { display: none; }
+
+  .table-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .csv-actions {
+    width: 100%;
+  }
+
+  .btn-csv {
+    flex: 1;
+    justify-content: center;
+  }
+}
+
+@media (min-width: 601px) and (max-width: 800px) {
+  .tbl-desktop { display: none; }
+  .tbl-mobile { display: block; }
+}
+
+@media (min-width: 801px) {
+  .stats-grid { grid-template-columns: repeat(4, 1fr); }
+  .chart-wrap { height: 300px; }
+}
+
+.csv-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
