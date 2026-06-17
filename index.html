@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0"
+    />
+
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+
+    <title>Blood Pressure Monitor</title>
+
+    <!-- Chart.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+
+    <!-- External CSS -->
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <!-- Header -->
+    <header>
+      <div class="pulse-icon">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="#e24b4a"
+          stroke-width="2.2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+        </svg>
+      </div>
+
+      <div>
+        <h1>Blood Pressure Monitor</h1>
+        <p>30-day tracking dashboard</p>
+      </div>
+    </header>
+
+    <div class="container">
+      <!-- Statistics -->
+      <div class="stats-grid">
+        <div class="stat-box">
+          <div class="lbl">Avg Systolic</div>
+          <div class="val sys" id="avgSys">—</div>
+          <div class="sub">mmHg · 30 days</div>
+        </div>
+
+        <div class="stat-box">
+          <div class="lbl">Avg Diastolic</div>
+          <div class="val dia" id="avgDia">—</div>
+          <div class="sub">mmHg · 30 days</div>
+        </div>
+
+        <div class="stat-box">
+          <div class="lbl">Latest Reading</div>
+          <div class="val neu" id="latestReading">—</div>
+          <div class="sub" id="latestDate">No readings yet</div>
+        </div>
+
+        <div class="stat-box">
+          <div class="lbl">Total Readings</div>
+          <div class="val neu" id="totalReadings">0</div>
+          <div class="sub">in last 30 days</div>
+        </div>
+      </div>
+
+      <!-- Chart -->
+      <div class="card">
+        <div class="card-title">30-Day Trend</div>
+
+        <div class="legend">
+          <div class="legend-item">
+            <span class="legend-dot systolic-dot"></span>
+            Systolic
+          </div>
+
+          <div class="legend-item">
+            <span class="legend-dot diastolic-dot"></span>
+            Diastolic
+          </div>
+        </div>
+
+        <div class="chart-wrap">
+          <canvas id="bpChart" role="img" aria-label="Blood pressure graph">
+          </canvas>
+        </div>
+      </div>
+
+      <!-- Add Reading -->
+      <div class="card">
+        <div class="card-title">Add Reading</div>
+
+        <div class="form-stack">
+          <!-- Row 1 -->
+          <div class="form-row-2">
+            <div class="field">
+              <label>Systolic (mmHg)</label>
+              <input
+                type="number"
+                id="systolic"
+                placeholder="120"
+                min="60"
+                max="250"
+                inputmode="numeric"
+              />
+            </div>
+
+            <div class="field">
+              <label>Diastolic (mmHg)</label>
+              <input
+                type="number"
+                id="diastolic"
+                placeholder="80"
+                min="40"
+                max="150"
+                inputmode="numeric"
+              />
+            </div>
+          </div>
+
+          <!-- Row 2 -->
+          <div class="form-row-2">
+            <div class="field">
+              <label>Pulse (bpm) — optional</label>
+              <input
+                type="number"
+                id="pulse"
+                placeholder="72"
+                min="30"
+                max="220"
+                inputmode="numeric"
+              />
+            </div>
+
+            <div class="field">
+              <label>Date & Time</label>
+              <input type="datetime-local" id="readingTime" />
+            </div>
+          </div>
+
+          <!-- Row 3 -->
+          <div class="field full-width">
+            <label>Notes — optional</label>
+            <input
+              type="text"
+              id="notes"
+              placeholder="After exercise, before medication..."
+            />
+          </div>
+
+          <button class="btn-add" onclick="addReading()">Save Reading</button>
+
+          <p class="hint">
+            Enter
+            <span class="sys">Systolic</span> /
+            <span class="dia">Diastolic</span>. Pulse is optional and is saved
+            to CSV but not shown on the graph.
+          </p>
+        </div>
+      </div>
+
+      <!-- Reading History -->
+      <div class="card">
+        <div class="table-header">
+          <div class="card-title history-title">Reading History</div>
+
+          <div class="csv-actions">
+            <button
+              class="btn-csv"
+              onclick="document.getElementById('csvImport').click()"
+            >
+              Import CSV
+            </button>
+
+            <button class="btn-csv" onclick="downloadCSV()">
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+
+              Download CSV
+            </button>
+          </div>
+
+          <input
+            type="file"
+            id="csvImport"
+            accept=".csv"
+            style="display: none"
+            onchange="importCSV(event)"
+          />
+        </div>
+
+        <!-- Desktop Table & Mobile Cards -->
+        <div id="tableContainer"></div>
+      </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <!-- JavaScript -->
+    <script src="script.js"></script>
+  </body>
+</html>
