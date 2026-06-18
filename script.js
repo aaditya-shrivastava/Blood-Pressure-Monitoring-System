@@ -7,6 +7,7 @@ import {
 let chart = null;
 let currentUser = null;
 let currentProfile = null; // { id, name, ownerId, role: 'owner'|'editor' }
+let activeFilter = { type: "all", month: "" }; // shared filter state
 
 /* ==========================
    Auth
@@ -443,15 +444,100 @@ function toast(message, duration = 2500) {
 }
 
 /* ==========================
+   Filter State
+========================== */
+
+let activeFilter = { type: "all", month: "" };
+
+/* ==========================
+   Filter Helpers
+========================== */
+
+function applyFilter(readings) {
+  const now = Date.now();
+  if (activeFilter.type === "30") {
+    return readings.filter(r => new Date(r.time).getTime() >= now - 30 * 86400000);
+  } else if (activeFilter.type === "90") {
+    return readings.filter(r => new Date(r.time).getTime() >= now - 90 * 86400000);
+  } else if (activeFilter.type === "month" && activeFilter.month) {
+    return readings.filter(r => r.time.slice(0, 7) === activeFilter.month);
+  }
+  return readings;
+}
+
+function populateMonthDropdowns(readings) {
+  // Get unique months from readings
+  const months = [...new Set(readings.map(r => r.time.slice(0, 7)))].sort().reverse();
+  const label = (m) => new Date(m + "-01").toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+
+  ["chartMonthSelect", "historyMonthSelect"].forEach(id => {
+    const sel = document.getElementById(id);
+    const current = sel.value;
+    sel.innerHTML = `<option value="">By Month</option>` +
+      months.map(m => `<option value="${m}" ${m === current ? "selected" : ""}>${label(m)}</option>`).join("");
+  });
+}
+
+function syncFilterUI() {
+  // Sync both filter bars to activeFilter
+  ["chartFilterBar", "historyFilterBar"].forEach(barId => {
+    const bar = document.getElementById(barId);
+    bar.querySelectorAll(".filter-btn").forEach(btn => {
+      btn.classList.toggle("active", btn.dataset.filter === activeFilter.type);
+    });
+  });
+
+  // Sync month selects
+  const mv = activeFilter.type === "month" ? activeFilter.month : "";
+  document.getElementById("chartMonthSelect").value = mv;
+  document.getElementById("historyMonthSelect").value = mv;
+}
+
+function initFilterListeners(allReadings) {
+  ["chartFilterBar", "historyFilterBar"].forEach(barId => {
+    const bar = document.getElementById(barId);
+    bar.querySelectorAll(".filter-btn").forEach(btn => {
+      btn.onclick = () => {
+        activeFilter = { type: btn.dataset.filter, month: "" };
+        syncFilterUI();
+        const filtered = applyFilter(allReadings).sort((a, b) => new Date(a.time) - new Date(b.time));
+        updateChart(filtered);
+        updateTable(allReadings, filtered);
+      };
+    });
+  });
+
+  ["chartMonthSelect", "historyMonthSelect"].forEach(id => {
+    document.getElementById(id).onchange = function () {
+      if (this.value) {
+        activeFilter = { type: "month", month: this.value };
+      } else {
+        activeFilter = { type: "all", month: "" };
+      }
+      syncFilterUI();
+      const filtered = applyFilter(allReadings).sort((a, b) => new Date(a.time) - new Date(b.time));
+      updateChart(filtered);
+      updateTable(allReadings, filtered);
+    };
+  });
+}
+
+/* ==========================
    Main Render
 ========================== */
 
 async function render() {
   const readings = await loadReadings();
-  const sorted = [...readings].sort((a, b) => new Date(a.time) - new Date(b.time));
-  updateStats(sorted);
-  updateChart(sorted);
-  updateTable(readings);
+  const allSorted = [...readings].sort((a, b) => new Date(a.time) - new Date(b.time));
+
+  populateMonthDropdowns(allSorted);
+  syncFilterUI();
+  initFilterListeners(allSorted);
+
+  const filtered = applyFilter(allSorted);
+  updateStats(allSorted); // stats always show all-time
+  updateChart(filtered);
+  updateTable(allSorted, filtered);
 }
 
 /* ==========================
@@ -517,46 +603,112 @@ function setDefaultTime() {
 }
 
 /* ==========================
-   Reading History Table
+   Reading History Table (Grouped by Month)
 ========================== */
 
-function updateTable(all) {
-  const container = document.getElementById("tableContainer");
-  const sorted = [...all].sort((a, b) => new Date(b.time) - new Date(a.time));
+// Track which months are expanded — latest month open by default
+const expandedMonths = new Set();
 
-  if (!sorted.length) {
-    container.innerHTML = `<div class="empty-state"><p>No readings yet. Add your first reading above.</p></div>`;
+function updateTable(all, filtered) {
+  const container = document.getElementById("tableContainer");
+  const readings = (filtered || all).slice().sort((a, b) => new Date(b.time) - new Date(a.time));
+
+  if (!readings.length) {
+    container.innerHTML = `<div class="empty-state"><p>No readings in this range.</p></div>`;
     return;
   }
 
-  const desktopRows = sorted.map(r => `
-    <tr>
-      <td>${fmtDate(r.time)}</td>
-      <td class="sv">${r.sys}</td>
-      <td class="dv">${r.dia}</td>
-      <td>${r.pulse || "-"}</td>
-      <td>${r.notes || "-"}</td>
-      <td><button class="btn-del" onclick="deleteReading('${r.id}')">✕</button></td>
-    </tr>`).join("");
+  // Group by YYYY-MM
+  const groups = {};
+  readings.forEach(r => {
+    const key = r.time.slice(0, 7);
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(r);
+  });
 
-  const mobileCards = sorted.map(r => `
-    <div class="row-card">
-      <div class="row-date">${fmtDate(r.time)}</div>
-      <div class="row-bp"><span class="row-sys">${r.sys}</span> / <span class="row-dia">${r.dia}</span> mmHg</div>
-      <div style="margin-top:8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-        <span class="row-pulse">♥ ${r.pulse || "-"} bpm</span>
-      </div>
-      ${r.notes ? `<div class="row-notes">${r.notes}</div>` : ""}
-      <button class="btn-del" style="margin-top:8px;" onclick="deleteReading('${r.id}')">Delete</button>
-    </div>`).join("");
+  const monthKeys = Object.keys(groups).sort().reverse();
 
-  container.innerHTML = `
-    <table class="tbl-desktop">
-      <thead><tr><th>Date & Time</th><th>Systolic</th><th>Diastolic</th><th>Pulse</th><th>Notes</th><th></th></tr></thead>
-      <tbody>${desktopRows}</tbody>
-    </table>
-    <div class="tbl-mobile">${mobileCards}</div>`;
+  // Auto-expand latest month if nothing expanded yet
+  if (expandedMonths.size === 0 && monthKeys.length) {
+    expandedMonths.add(monthKeys[0]);
+  }
+
+  const html = monthKeys.map(key => {
+    const monthReadings = groups[key];
+    const avgSys = Math.round(monthReadings.reduce((s, r) => s + r.sys, 0) / monthReadings.length);
+    const avgDia = Math.round(monthReadings.reduce((s, r) => s + r.dia, 0) / monthReadings.length);
+    const monthLabel = new Date(key + "-01").toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+    const isOpen = expandedMonths.has(key);
+
+    // Desktop rows for this month
+    const desktopRows = monthReadings.map(r => `
+      <tr>
+        <td>${fmtDate(r.time)}</td>
+        <td class="sv">${r.sys}</td>
+        <td class="dv">${r.dia}</td>
+        <td>${r.pulse || "—"}</td>
+        <td>${r.notes || "—"}</td>
+        <td><button class="btn-del" onclick="deleteReading('${r.id}')">✕</button></td>
+      </tr>`).join("");
+
+    // Mobile cards for this month
+    const mobileCards = monthReadings.map(r => `
+      <div class="row-card">
+        <div class="row-date">${fmtDate(r.time)}</div>
+        <div class="row-bp"><span class="row-sys">${r.sys}</span> / <span class="row-dia">${r.dia}</span> mmHg</div>
+        <div style="margin-top:8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+          <span class="row-pulse">♥ ${r.pulse || "—"} bpm</span>
+        </div>
+        ${r.notes ? `<div class="row-notes">${r.notes}</div>` : ""}
+        <button class="btn-del" style="margin-top:8px;" onclick="deleteReading('${r.id}')">Delete</button>
+      </div>`).join("");
+
+    return `
+      <div class="month-group">
+        <div class="month-header" onclick="toggleMonth('${key}')">
+          <div class="month-header-left">
+            <span class="month-chevron ${isOpen ? "open" : ""}">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
+            </span>
+            <span class="month-name">${monthLabel}</span>
+            <span class="month-count">${monthReadings.length} reading${monthReadings.length !== 1 ? "s" : ""}</span>
+          </div>
+          <div class="month-avgs">
+            <span class="month-avg-sys">${avgSys}</span>
+            <span class="month-avg-sep">/</span>
+            <span class="month-avg-dia">${avgDia}</span>
+            <span class="month-avg-unit">mmHg avg</span>
+          </div>
+        </div>
+
+        <div class="month-body ${isOpen ? "open" : ""}">
+          <table class="tbl-desktop">
+            <thead><tr><th>Date & Time</th><th>Systolic</th><th>Diastolic</th><th>Pulse</th><th>Notes</th><th></th></tr></thead>
+            <tbody>${desktopRows}</tbody>
+          </table>
+          <div class="tbl-mobile">${mobileCards}</div>
+        </div>
+      </div>`;
+  }).join("");
+
+  container.innerHTML = html;
 }
+
+window.toggleMonth = function (key) {
+  if (expandedMonths.has(key)) {
+    expandedMonths.delete(key);
+  } else {
+    expandedMonths.add(key);
+  }
+  // Re-render table only (no Firestore call needed)
+  const header = document.querySelector(`.month-group .month-header[onclick="toggleMonth('${key}')"]`);
+  const chevron = header?.querySelector(".month-chevron");
+  const body = header?.nextElementSibling;
+  if (chevron) chevron.classList.toggle("open", expandedMonths.has(key));
+  if (body) body.classList.toggle("open", expandedMonths.has(key));
+};
 
 /* ==========================
    Add Reading
@@ -683,6 +835,189 @@ window.importCSV = async function (event) {
   reader.readAsText(file);
   event.target.value = "";
 };
+
+/* ==========================
+   PDF Report
+========================== */
+
+window.openReportModal = function () {
+  document.getElementById("reportModal").style.display = "flex";
+  document.getElementById("reportNote").value = "";
+  document.getElementById("reportRange").value = "all";
+  document.getElementById("customRangeFields").style.display = "none";
+};
+
+document.getElementById("btnCancelReport").addEventListener("click", () => {
+  document.getElementById("reportModal").style.display = "none";
+});
+
+document.getElementById("reportRange").addEventListener("change", function () {
+  document.getElementById("customRangeFields").style.display =
+    this.value === "custom" ? "grid" : "none";
+});
+
+document.getElementById("btnPrintReport").addEventListener("click", async () => {
+  const range = document.getElementById("reportRange").value;
+  const note = document.getElementById("reportNote").value.trim();
+
+  let all = await loadReadings();
+  all = [...all].sort((a, b) => new Date(a.time) - new Date(b.time));
+
+  // Filter by range
+  let filtered = all;
+  const now = Date.now();
+  if (range === "30") {
+    filtered = all.filter(r => new Date(r.time).getTime() >= now - 30 * 86400000);
+  } else if (range === "90") {
+    filtered = all.filter(r => new Date(r.time).getTime() >= now - 90 * 86400000);
+  } else if (range === "custom") {
+    const from = document.getElementById("reportFrom").value;
+    const to = document.getElementById("reportTo").value;
+    if (!from || !to) { toast("Select both from and to dates."); return; }
+    filtered = all.filter(r => {
+      const t = new Date(r.time).getTime();
+      return t >= new Date(from).getTime() && t <= new Date(to).getTime() + 86400000;
+    });
+  }
+
+  if (!filtered.length) { toast("No readings in selected range."); return; }
+
+  // Stats
+  const avgSys = Math.round(filtered.reduce((s, r) => s + r.sys, 0) / filtered.length);
+  const avgDia = Math.round(filtered.reduce((s, r) => s + r.dia, 0) / filtered.length);
+  const pulseReadings = filtered.filter(r => r.pulse);
+  const avgPulse = pulseReadings.length ? Math.round(pulseReadings.reduce((s, r) => s + Number(r.pulse), 0) / pulseReadings.length) : "—";
+  const highCount = filtered.filter(r => r.sys >= 130).length;
+  const minSys = Math.min(...filtered.map(r => r.sys));
+  const maxSys = Math.max(...filtered.map(r => r.sys));
+  const periodFrom = fmtDateShort(filtered[0].time);
+  const periodTo = fmtDateShort(filtered[filtered.length - 1].time);
+  const generatedOn = new Date().toLocaleDateString("en-IN", { day:"2-digit", month:"short", year:"numeric" });
+
+  // Table rows
+  const tableRows = filtered.slice().reverse().map(r => {
+    const [, status] = classify(r.sys, r.dia);
+    const badgeClass = status === "Normal" ? "badge-normal" : status === "Elevated" ? "badge-elevated" : status === "Low" ? "badge-low" : "badge-high";
+    return `
+      <tr>
+        <td>${fmtDateShort(r.time)}</td>
+        <td>${fmtTime(r.time)}</td>
+        <td style="color:#e24b4a;font-weight:600;">${r.sys}</td>
+        <td style="color:#185fa5;font-weight:600;">${r.dia}</td>
+        <td>${r.pulse || "—"}</td>
+        <td><span class="badge ${badgeClass}">${status}</span></td>
+        <td>${r.notes || "—"}</td>
+      </tr>`;
+  }).join("");
+
+  // Auto note if not provided
+  const peak = filtered.reduce((a, b) => a.sys > b.sys ? a : b);
+  const autoNote = note ||
+    `Average BP of ${avgSys}/${avgDia} mmHg over ${filtered.length} readings from ${periodFrom} to ${periodTo}. ` +
+    `${highCount} reading${highCount !== 1 ? "s" : ""} classified as High (≥130 systolic). ` +
+    `Peak reading: ${peak.sys}/${peak.dia} on ${fmtDateShort(peak.time)}.`;
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8"/>
+      <title>BP Report – ${currentProfile.name}</title>
+      <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 12px; color: #1a202c; padding: 32px 36px; }
+        .report-header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 14px; border-bottom: 2px solid #e24b4a; margin-bottom: 20px; }
+        .report-title { font-size: 18px; font-weight: 700; margin-bottom: 2px; }
+        .report-sub { font-size: 11px; color: #64748b; }
+        .report-meta { text-align: right; font-size: 11px; color: #64748b; line-height: 1.8; }
+        .section-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #64748b; margin-bottom: 8px; }
+        .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 20px; }
+        .stat-card { background: #f5f7fa; border-radius: 8px; padding: 10px 12px; }
+        .stat-label { font-size: 9px; color: #64748b; margin-bottom: 3px; }
+        .stat-val { font-size: 20px; font-weight: 700; }
+        .stat-unit { font-size: 9px; color: #64748b; margin-top: 2px; }
+        table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 20px; }
+        th { text-align: left; font-size: 9px; font-weight: 700; color: #64748b; padding: 6px 8px; border-bottom: 1px solid #e2e8f0; }
+        td { padding: 6px 8px; border-bottom: 1px solid #e2e8f0; }
+        .badge { display: inline-block; font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 10px; }
+        .badge-normal { background: #EAF3DE; color: #3B6D11; }
+        .badge-elevated { background: #FAEEDA; color: #854F0B; }
+        .badge-high { background: #FCEBEB; color: #A32D2D; }
+        .badge-low { background: #EFF6FF; color: #1D4ED8; }
+        .note-box { background: #f5f7fa; border-left: 3px solid #e24b4a; border-radius: 0 8px 8px 0; padding: 10px 14px; margin-bottom: 20px; font-size: 11px; line-height: 1.6; color: #64748b; }
+        .footer { border-top: 1px solid #e2e8f0; padding-top: 10px; display: flex; justify-content: space-between; font-size: 9px; color: #64748b; }
+        @media print { body { padding: 20px 24px; } }
+      </style>
+    </head>
+    <body>
+      <div class="report-header">
+        <div>
+          <div class="report-title">Blood Pressure Report</div>
+          <div class="report-sub">Profile: ${currentProfile.name} &nbsp;·&nbsp; Generated ${generatedOn}</div>
+        </div>
+        <div class="report-meta">
+          Period: ${periodFrom} – ${periodTo}<br>
+          Total readings: ${filtered.length}<br>
+          <span style="color:#e24b4a;font-weight:600;">BP Monitor App</span>
+        </div>
+      </div>
+
+      <div class="section-label">Summary statistics</div>
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-label">Avg Systolic</div>
+          <div class="stat-val" style="color:#e24b4a;">${avgSys}</div>
+          <div class="stat-unit">mmHg</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Avg Diastolic</div>
+          <div class="stat-val" style="color:#185fa5;">${avgDia}</div>
+          <div class="stat-unit">mmHg</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Avg Pulse</div>
+          <div class="stat-val">${avgPulse}</div>
+          <div class="stat-unit">bpm</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">High readings</div>
+          <div class="stat-val" style="color:#A32D2D;">${highCount}</div>
+          <div class="stat-unit">of ${filtered.length} total</div>
+        </div>
+      </div>
+
+      <div class="section-label" style="margin-bottom:10px;">Doctor's note</div>
+      <div class="note-box">${autoNote}</div>
+
+      <div class="section-label">Reading history</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th><th>Time</th><th>Systolic</th><th>Diastolic</th><th>Pulse</th><th>Status</th><th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>${tableRows}</tbody>
+      </table>
+
+      <div class="footer">
+        <span>Blood Pressure Monitor App</span>
+        <span>Min systolic: ${minSys} &nbsp;·&nbsp; Max systolic: ${maxSys} mmHg</span>
+        <span>Page 1 of 1</span>
+      </div>
+    </body>
+    </html>`;
+
+  // Open print window
+  const win = window.open("", "_blank");
+  win.document.write(html);
+  win.document.close();
+  win.onload = () => {
+    win.focus();
+    win.print();
+  };
+
+  document.getElementById("reportModal").style.display = "none";
+});
 
 /* ==========================
    Events

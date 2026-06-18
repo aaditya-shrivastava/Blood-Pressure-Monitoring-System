@@ -431,13 +431,127 @@ input[type="datetime-local"] { font-size: 0.85rem; }
 .hint { font-size: 0.75rem; color: var(--muted); line-height: 1.5; }
 
 /* ==========================
-   History
+   Filter Bar
 ========================== */
+
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.filter-btn {
+  padding: 0.35rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: white;
+  font-size: 0.75rem;
+  cursor: pointer;
+  color: var(--muted);
+  transition: all 0.15s;
+}
+
+.filter-btn:hover { background: var(--bg); }
+
+.filter-btn.active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+.filter-select {
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: white;
+  font-size: 0.75rem;
+  color: var(--muted);
+  cursor: pointer;
+  outline: none;
+}
+
+/* ==========================
+   Monthly Groups
+========================== */
+
+.month-group {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 0.75rem;
+  overflow: hidden;
+}
+
+.month-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: var(--bg);
+  cursor: pointer;
+  user-select: none;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.month-header:hover { background: #edf0f5; }
+
+.month-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.month-chevron {
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  transition: transform 0.2s;
+}
+
+.month-chevron.open { transform: rotate(90deg); }
+
+.month-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.month-count {
+  font-size: 0.72rem;
+  color: var(--muted);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1px 8px;
+}
+
+.month-avgs {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  font-size: 0.85rem;
+}
+
+.month-avg-sys { color: var(--systolic); font-weight: 700; }
+.month-avg-sep { color: var(--muted); }
+.month-avg-dia { color: var(--diastolic); font-weight: 700; }
+.month-avg-unit { font-size: 0.7rem; color: var(--muted); margin-left: 2px; }
+
+.month-body {
+  display: none;
+  padding: 0.5rem 0;
+}
+
+.month-body.open { display: block; }
 
 .table-header { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; margin-bottom: 1rem; }
 
 .btn-csv { display: flex; align-items: center; gap: 5px; padding: 0.45rem 0.8rem; border: 1px solid var(--border); border-radius: 8px; background: white; cursor: pointer; font-size: 0.75rem; }
 .btn-csv:hover { background: var(--bg); }
+
+.btn-pdf { color: #A32D2D; border-color: rgba(226,75,74,0.3); }
+.btn-pdf:hover { background: #fff0f0; }
 
 .tbl-desktop { width: 100%; border-collapse: collapse; }
 .tbl-desktop th, .tbl-desktop td { padding: 0.7rem; border-bottom: 1px solid var(--border); text-align: left; }
