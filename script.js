@@ -466,6 +466,7 @@ function populateMonthDropdowns(readings) {
 
   ["chartMonthSelect", "historyMonthSelect"].forEach(id => {
     const sel = document.getElementById(id);
+    if (!sel) return;
     const current = sel.value;
     sel.innerHTML = `<option value="">By Month</option>` +
       months.map(m => `<option value="${m}" ${m === current ? "selected" : ""}>${label(m)}</option>`).join("");
@@ -473,6 +474,7 @@ function populateMonthDropdowns(readings) {
 }
 
 function syncFilterUI() {
+  // Sync both filter bars to activeFilter
   ["chartFilterBar", "historyFilterBar"].forEach(barId => {
     const bar = document.getElementById(barId);
     if (!bar) return;
@@ -481,21 +483,19 @@ function syncFilterUI() {
     });
   });
 
+  // Sync month selects
   const mv = activeFilter.type === "month" ? activeFilter.month : "";
-  const cm = document.getElementById("chartMonthSelect");
-  const hm = document.getElementById("historyMonthSelect");
-  if (cm) cm.value = mv;
-  if (hm) hm.value = mv;
+  const cms = document.getElementById("chartMonthSelect");
+  const hms = document.getElementById("historyMonthSelect");
+  if (cms) cms.value = mv;
+  if (hms) hms.value = mv;
 }
 
 function initFilterListeners(allReadings) {
   ["chartFilterBar", "historyFilterBar"].forEach(barId => {
     const bar = document.getElementById(barId);
     if (!bar) return;
-    // Clone to remove old listeners
-    const newBar = bar.cloneNode(true);
-    bar.parentNode.replaceChild(newBar, bar);
-    newBar.querySelectorAll(".filter-btn").forEach(btn => {
+    bar.querySelectorAll(".filter-btn").forEach(btn => {
       btn.onclick = () => {
         activeFilter = { type: btn.dataset.filter, month: "" };
         syncFilterUI();
@@ -507,12 +507,12 @@ function initFilterListeners(allReadings) {
   });
 
   ["chartMonthSelect", "historyMonthSelect"].forEach(id => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.onchange = function () {
-      activeFilter = this.value
-        ? { type: "month", month: this.value }
-        : { type: "all", month: "" };
+    document.getElementById(id).onchange = function () {
+      if (this.value) {
+        activeFilter = { type: "month", month: this.value };
+      } else {
+        activeFilter = { type: "all", month: "" };
+      }
       syncFilterUI();
       const filtered = applyFilter(allReadings).sort((a, b) => new Date(a.time) - new Date(b.time));
       updateChart(filtered);
@@ -529,17 +529,14 @@ async function render() {
   const readings = await loadReadings();
   const allSorted = [...readings].sort((a, b) => new Date(a.time) - new Date(b.time));
 
-  // Always reset to "all" so everything shows by default
-  activeFilter = { type: "all", month: "" };
-
   populateMonthDropdowns(allSorted);
   syncFilterUI();
   initFilterListeners(allSorted);
 
-  // Show all readings by default
-  updateStats(allSorted);
-  updateChart(allSorted);
-  updateTable(allSorted, allSorted);
+  const filtered = applyFilter(allSorted);
+  updateStats(allSorted); // stats always show all-time
+  updateChart(filtered);
+  updateTable(allSorted, filtered);
 }
 
 /* ==========================
@@ -919,6 +916,29 @@ document.getElementById("btnPrintReport").addEventListener("click", async () => 
     `${highCount} reading${highCount !== 1 ? "s" : ""} classified as High (≥130 systolic). ` +
     `Peak reading: ${peak.sys}/${peak.dia} on ${fmtDateShort(peak.time)}.`;
 
+  // Build SVG trend chart from real data
+  const chartW = 580, chartH = 110;
+  const allSys = filtered.map(r => r.sys);
+  const allDia = filtered.map(r => r.dia);
+  const chartMin = 60, chartMax = 180;
+  const toY = v => Math.round(chartH - ((v - chartMin) / (chartMax - chartMin)) * chartH);
+  const toX = i => Math.round((i / (filtered.length - 1 || 1)) * chartW);
+  const sysPoints = filtered.map((r, i) => `${toX(i)},${toY(r.sys)}`).join(" ");
+  const diaPoints = filtered.map((r, i) => `${toX(i)},${toY(r.dia)}`).join(" ");
+  // Y-axis grid lines & labels at 60, 80, 100, 120, 140, 160
+  const yGridLines = [160, 140, 120, 100, 80, 60].map(v =>
+    `<line x1="0" y1="${toY(v)}" x2="${chartW}" y2="${toY(v)}" stroke="#e2e8f0" stroke-width="0.5" stroke-dasharray="3,3"/>`
+  ).join("");
+  const yLabels = [160, 140, 120, 100, 80, 60].map(v =>
+    `<span style="font-size:9px;color:#64748b;text-align:right;display:block;">${v}</span>`
+  ).join("");
+  // X-axis: up to 6 evenly spaced date labels
+  const xCount = Math.min(6, filtered.length);
+  const xLabels = Array.from({ length: xCount }, (_, i) => {
+    const idx = Math.round(i * (filtered.length - 1) / (xCount - 1 || 1));
+    return `<span style="font-size:9px;color:#64748b;">${fmtDateShort(filtered[idx].time)}</span>`;
+  }).join("");
+
   const html = `
     <!DOCTYPE html>
     <html>
@@ -928,26 +948,36 @@ document.getElementById("btnPrintReport").addEventListener("click", async () => 
       <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 12px; color: #1a202c; padding: 32px 36px; }
-        .report-header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 14px; border-bottom: 2px solid #e24b4a; margin-bottom: 20px; }
-        .report-title { font-size: 18px; font-weight: 700; margin-bottom: 2px; }
-        .report-sub { font-size: 11px; color: #64748b; }
-        .report-meta { text-align: right; font-size: 11px; color: #64748b; line-height: 1.8; }
-        .section-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #64748b; margin-bottom: 8px; }
-        .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 20px; }
+        .report-header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 16px; border-bottom: 1.5px solid #e24b4a; margin-bottom: 20px; }
+        .report-title { font-size: 18px; font-weight: 500; margin-bottom: 2px; }
+        .report-sub { font-size: 12px; color: #64748b; }
+        .report-meta { text-align: right; font-size: 12px; color: #64748b; line-height: 1.8; }
+        .section-label { font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.08em; color: #64748b; margin-bottom: 10px; }
+        .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
         .stat-card { background: #f5f7fa; border-radius: 8px; padding: 10px 12px; }
-        .stat-label { font-size: 9px; color: #64748b; margin-bottom: 3px; }
-        .stat-val { font-size: 20px; font-weight: 700; }
-        .stat-unit { font-size: 9px; color: #64748b; margin-top: 2px; }
+        .stat-label { font-size: 10px; color: #64748b; margin-bottom: 3px; }
+        .stat-val { font-size: 20px; font-weight: 500; }
+        .stat-unit { font-size: 10px; color: #64748b; margin-top: 2px; }
+        .chart-area { border: 0.5px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 20px; }
+        .chart-legend { display: flex; gap: 16px; margin-bottom: 10px; }
+        .legend-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; vertical-align: middle; }
+        .chart-wrap { position: relative; height: 130px; }
+        .chart-yaxis { position: absolute; left: 0; top: 0; bottom: 20px; width: 28px; display: flex; flex-direction: column; justify-content: space-between; }
+        .chart-inner { position: absolute; left: 32px; right: 0; top: 0; bottom: 20px; overflow: hidden; }
+        .chart-xaxis { position: absolute; left: 32px; right: 0; bottom: 0; display: flex; justify-content: space-between; }
         table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 20px; }
-        th { text-align: left; font-size: 9px; font-weight: 700; color: #64748b; padding: 6px 8px; border-bottom: 1px solid #e2e8f0; }
-        td { padding: 6px 8px; border-bottom: 1px solid #e2e8f0; }
-        .badge { display: inline-block; font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 10px; }
+        th { text-align: left; font-size: 10px; font-weight: 500; color: #64748b; padding: 6px 8px; border-bottom: 0.5px solid #e2e8f0; }
+        td { padding: 6px 8px; border-bottom: 0.5px solid #e2e8f0; }
+        tr:last-child td { border-bottom: none; }
+        .sys-val { color: #e24b4a; font-weight: 500; }
+        .dia-val { color: #185fa5; font-weight: 500; }
+        .badge { display: inline-block; font-size: 9px; font-weight: 500; padding: 2px 7px; border-radius: 10px; }
         .badge-normal { background: #EAF3DE; color: #3B6D11; }
         .badge-elevated { background: #FAEEDA; color: #854F0B; }
         .badge-high { background: #FCEBEB; color: #A32D2D; }
         .badge-low { background: #EFF6FF; color: #1D4ED8; }
-        .note-box { background: #f5f7fa; border-left: 3px solid #e24b4a; border-radius: 0 8px 8px 0; padding: 10px 14px; margin-bottom: 20px; font-size: 11px; line-height: 1.6; color: #64748b; }
-        .footer { border-top: 1px solid #e2e8f0; padding-top: 10px; display: flex; justify-content: space-between; font-size: 9px; color: #64748b; }
+        .note-box { background: #f5f7fa; border-left: 3px solid #e24b4a; border-radius: 0 8px 8px 0; padding: 10px 14px; margin-bottom: 20px; font-size: 12px; line-height: 1.6; color: #64748b; }
+        .footer { border-top: 0.5px solid #e2e8f0; padding-top: 12px; display: flex; justify-content: space-between; font-size: 10px; color: #64748b; }
         @media print { body { padding: 20px 24px; } }
       </style>
     </head>
@@ -960,24 +990,24 @@ document.getElementById("btnPrintReport").addEventListener("click", async () => 
         <div class="report-meta">
           Period: ${periodFrom} – ${periodTo}<br>
           Total readings: ${filtered.length}<br>
-          <span style="color:#e24b4a;font-weight:600;">BP Monitor App</span>
+          <span style="color:#e24b4a;font-weight:500;">BP Monitor App</span>
         </div>
       </div>
 
       <div class="section-label">Summary statistics</div>
       <div class="stats-row">
         <div class="stat-card">
-          <div class="stat-label">Avg Systolic</div>
+          <div class="stat-label">Avg systolic</div>
           <div class="stat-val" style="color:#e24b4a;">${avgSys}</div>
           <div class="stat-unit">mmHg</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">Avg Diastolic</div>
+          <div class="stat-label">Avg diastolic</div>
           <div class="stat-val" style="color:#185fa5;">${avgDia}</div>
           <div class="stat-unit">mmHg</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">Avg Pulse</div>
+          <div class="stat-label">Avg pulse</div>
           <div class="stat-val">${avgPulse}</div>
           <div class="stat-unit">bpm</div>
         </div>
@@ -988,8 +1018,24 @@ document.getElementById("btnPrintReport").addEventListener("click", async () => 
         </div>
       </div>
 
-      <div class="section-label" style="margin-bottom:10px;">Doctor's note</div>
-      <div class="note-box">${autoNote}</div>
+      <div class="section-label">Trend chart</div>
+      <div class="chart-area">
+        <div class="chart-legend">
+          <span><span class="legend-dot" style="background:#e24b4a;"></span><span style="font-size:11px;">Systolic</span></span>
+          <span><span class="legend-dot" style="background:#185fa5;"></span><span style="font-size:11px;">Diastolic</span></span>
+        </div>
+        <div class="chart-wrap">
+          <div class="chart-yaxis">${yLabels}</div>
+          <div class="chart-inner">
+            <svg width="100%" height="100%" viewBox="0 0 ${chartW} ${chartH}" preserveAspectRatio="none">
+              ${yGridLines}
+              <polyline fill="none" stroke="#e24b4a" stroke-width="1.5" points="${sysPoints}"/>
+              <polyline fill="none" stroke="#185fa5" stroke-width="1.5" stroke-dasharray="4,2" points="${diaPoints}"/>
+            </svg>
+          </div>
+          <div class="chart-xaxis">${xLabels}</div>
+        </div>
+      </div>
 
       <div class="section-label">Reading history</div>
       <table>
@@ -1000,6 +1046,10 @@ document.getElementById("btnPrintReport").addEventListener("click", async () => 
         </thead>
         <tbody>${tableRows}</tbody>
       </table>
+
+      <div class="note-box">
+        <strong style="color:#1a202c;">Note for your doctor:</strong> ${autoNote}
+      </div>
 
       <div class="footer">
         <span>Blood Pressure Monitor App</span>
