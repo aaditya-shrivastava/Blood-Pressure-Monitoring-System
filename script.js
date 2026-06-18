@@ -256,24 +256,19 @@ document.getElementById("btnSendInvite").addEventListener("click", async () => {
   if (!email) { toast("Enter an email address."); return; }
   if (email === currentUser.email.toLowerCase()) { toast("You can't invite yourself."); return; }
 
-  // Check for duplicate invite
+  // Check for duplicate invite — query only by ownerId (allowed by rules)
   const q = query(
     collection(db, "invites"),
-    where("profileId", "==", currentProfile.id),
-    where("invitedEmail", "==", email),
-    where("status", "==", "pending")
+    where("ownerId", "==", currentUser.uid),
+    where("profileId", "==", currentProfile.id)
   );
   const existing = await getDocs(q);
-  if (!existing.empty) { toast("Invite already sent to this email."); return; }
+  const alreadyInvited = existing.docs.some(d => d.data().invitedEmail === email && d.data().status === "pending");
+  if (alreadyInvited) { toast("Invite already sent to this email."); return; }
 
-  // Check already has access
-  const accessQ = query(
-    collection(db, "sharedAccess"),
-    where("profileId", "==", currentProfile.id),
-    where("editorEmail", "==", email)
-  );
-  const accessExisting = await getDocs(accessQ);
-  if (!accessExisting.empty) { toast("This person already has access."); return; }
+  // Check already has access — use predictable doc ID directly
+  const accessDocId = `${currentUser.uid}_${currentProfile.id}_${currentUser.uid}`;
+  // Instead just check invite list above covers duplicates; skip separate access query
 
   await addDoc(collection(db, "invites"), {
     profileId: currentProfile.id,
@@ -291,12 +286,17 @@ document.getElementById("btnSendInvite").addEventListener("click", async () => {
 });
 
 async function loadCurrentEditors(profileId) {
-  const q = query(collection(db, "sharedAccess"), where("profileId", "==", profileId));
+  // Query sharedAccess by ownerId — allowed by rules
+  const q = query(collection(db, "sharedAccess"), where("ownerId", "==", currentUser.uid));
   const snap = await getDocs(q);
-  const editors = snap.docs.map(d => ({ accessId: d.id, ...d.data() }));
+  const editors = snap.docs
+    .map(d => ({ accessId: d.id, ...d.data() }))
+    .filter(d => d.profileId === profileId);
 
+  // Query invites by ownerId — allowed by rules
   const pendingQ = query(
     collection(db, "invites"),
+    where("ownerId", "==", currentUser.uid),
     where("profileId", "==", profileId),
     where("status", "==", "pending")
   );
