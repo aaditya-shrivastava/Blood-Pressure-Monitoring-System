@@ -99,7 +99,11 @@ async function loadMyProfiles() {
 }
 
 async function loadSharedProfiles() {
-  const q = query(collection(db, "sharedAccess"), where("editorId", "==", currentUser.uid));
+  // Query by editorId field — works with the security rules
+  const q = query(
+    collection(db, "sharedAccess"),
+    where("editorId", "==", currentUser.uid)
+  );
   const snap = await getDocs(q);
   const shared = snap.docs.map(d => ({ accessId: d.id, ...d.data() }));
   const section = document.getElementById("sharedSection");
@@ -343,7 +347,9 @@ window.cancelInvite = async function (inviteId) {
 ========================== */
 
 window.acceptInvite = async function (inviteId, profileId, profileName, ownerId, ownerName) {
-  await addDoc(collection(db, "sharedAccess"), {
+  // Use predictable doc ID: editorUid_profileId_ownerId — matches Firestore rules
+  const accessDocId = `${currentUser.uid}_${profileId}_${ownerId}`;
+  await setDoc(doc(db, "sharedAccess", accessDocId), {
     profileId,
     profileName,
     ownerId,
