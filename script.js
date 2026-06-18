@@ -444,12 +444,6 @@ function toast(message, duration = 2500) {
 }
 
 /* ==========================
-   Filter State
-========================== */
-
-let activeFilter = { type: "all", month: "" };
-
-/* ==========================
    Filter Helpers
 ========================== */
 
