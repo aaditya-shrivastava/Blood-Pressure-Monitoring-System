@@ -473,24 +473,29 @@ function populateMonthDropdowns(readings) {
 }
 
 function syncFilterUI() {
-  // Sync both filter bars to activeFilter
   ["chartFilterBar", "historyFilterBar"].forEach(barId => {
     const bar = document.getElementById(barId);
+    if (!bar) return;
     bar.querySelectorAll(".filter-btn").forEach(btn => {
       btn.classList.toggle("active", btn.dataset.filter === activeFilter.type);
     });
   });
 
-  // Sync month selects
   const mv = activeFilter.type === "month" ? activeFilter.month : "";
-  document.getElementById("chartMonthSelect").value = mv;
-  document.getElementById("historyMonthSelect").value = mv;
+  const cm = document.getElementById("chartMonthSelect");
+  const hm = document.getElementById("historyMonthSelect");
+  if (cm) cm.value = mv;
+  if (hm) hm.value = mv;
 }
 
 function initFilterListeners(allReadings) {
   ["chartFilterBar", "historyFilterBar"].forEach(barId => {
     const bar = document.getElementById(barId);
-    bar.querySelectorAll(".filter-btn").forEach(btn => {
+    if (!bar) return;
+    // Clone to remove old listeners
+    const newBar = bar.cloneNode(true);
+    bar.parentNode.replaceChild(newBar, bar);
+    newBar.querySelectorAll(".filter-btn").forEach(btn => {
       btn.onclick = () => {
         activeFilter = { type: btn.dataset.filter, month: "" };
         syncFilterUI();
@@ -502,12 +507,12 @@ function initFilterListeners(allReadings) {
   });
 
   ["chartMonthSelect", "historyMonthSelect"].forEach(id => {
-    document.getElementById(id).onchange = function () {
-      if (this.value) {
-        activeFilter = { type: "month", month: this.value };
-      } else {
-        activeFilter = { type: "all", month: "" };
-      }
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.onchange = function () {
+      activeFilter = this.value
+        ? { type: "month", month: this.value }
+        : { type: "all", month: "" };
       syncFilterUI();
       const filtered = applyFilter(allReadings).sort((a, b) => new Date(a.time) - new Date(b.time));
       updateChart(filtered);
@@ -524,14 +529,17 @@ async function render() {
   const readings = await loadReadings();
   const allSorted = [...readings].sort((a, b) => new Date(a.time) - new Date(b.time));
 
+  // Always reset to "all" so everything shows by default
+  activeFilter = { type: "all", month: "" };
+
   populateMonthDropdowns(allSorted);
   syncFilterUI();
   initFilterListeners(allSorted);
 
-  const filtered = applyFilter(allSorted);
-  updateStats(allSorted); // stats always show all-time
-  updateChart(filtered);
-  updateTable(allSorted, filtered);
+  // Show all readings by default
+  updateStats(allSorted);
+  updateChart(allSorted);
+  updateTable(allSorted, allSorted);
 }
 
 /* ==========================
